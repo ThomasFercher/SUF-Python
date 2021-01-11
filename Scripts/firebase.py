@@ -1,5 +1,4 @@
 import pyrebase
-import Adafruit_DHT
 import datetime
 import time
 
@@ -15,10 +14,6 @@ config = {
 firebase = pyrebase.initialize_app(config)  
 db = firebase.database()
 
-#DHT22
-
-sensor = Adafruit_DHT.DHT22
-pin = '4'
 
 #Main Loop
 
@@ -27,7 +22,7 @@ while(True):
     ts = datetime.datetime.now()
     
     #get sensor data
-    humidity, temperature = Adafruit_DHT.read_retry(sensor, pin)
+    humidity, temperature = readValue()
     
     #format data
     formathumidity = '%.2f'%humidity
