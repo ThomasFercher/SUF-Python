@@ -1,5 +1,5 @@
 from simple_pid import PID
-import sensors
+import threading, time
 
 
 pid = PID(1, 0.1, 0.05, setpoint=1,sample_time=0.1,)
@@ -10,13 +10,34 @@ def setSetpoint(value):
 
 # assume we have a system we want to control in controlled_system
 v = 1
-pid.sample_time = 0.01
+pid.sample_time = 1
 
-while True:
-    v = readValue()
+ta = pid.sample_time
+
+def do_every(period,f,*args):
+    def g_tick():
+        t = time.time()
+        while True:
+            t += period
+            yield max(t - time.time(),0)
+    g = g_tick()
+    while True:
+        time.sleep(next(g))
+        f(*args)
+
+def cycle():
+    temperature,humidity = readDHT()
     # compute new ouput from the PID according to the systems current value
-    control = pid(v)
+    control = pid(temperature)
 
     # feed the PID output to the system and get its current value
-    v = control
-    print(v)
+    
+    print('{} ({:.4f})'.format(s,time.time()))
+    print(control)
+    print(temperature)
+
+
+
+
+do_every(ta,cycle)
+

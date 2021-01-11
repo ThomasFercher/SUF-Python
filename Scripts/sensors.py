@@ -4,7 +4,7 @@ import adafruit_dht
 #DHT22
 dhtDevice = adafruit_dht.DHT22(board.D18)
 
-readDHT()
+
 
 def readDHT():
     temperature = dhtDevice.temperature
@@ -12,3 +12,6 @@ def readDHT():
     print(temperature)
     print(humidity)
     return temperature,humidity
+
+
+readDHT()
