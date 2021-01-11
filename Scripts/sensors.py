@@ -1,9 +1,14 @@
-import Adafruit_DHT
-
+import board
+import adafruit_dht
 
 #DHT22
-sensor = Adafruit_DHT.DHT22
-pin = '4'
+dhtDevice = adafruit_dht.DHT22(board.D18)
 
-def readValue():
-    return Adafruit_DHT.read_retry(sensor, pin)
+readDHT()
+
+def readDHT():
+    temperature = dhtDevice.temperature
+    humidity = dhtDevice.humidity
+    print(temperature)
+    print(humidity)
+    return temperature,humidity
