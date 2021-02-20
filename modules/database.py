@@ -1,6 +1,18 @@
-from firebase import Firebase
+
+from array import array
+from base64 import encode
+from modules.camera import takePhoto
+import time
+from modules.objects.climate import Climate, LiveData
+
+from os import name
+
 import json
-from ctypes import Structure, c_double
+import ctypes
+from multiprocessing import shared_memory
+import asyncio
+import aioredis
+import pyrebase
 
 
 config = {
@@ -11,25 +23,30 @@ config = {
 
 }
 
-firebase = Firebase(config)
+
+firebase = pyrebase.initialize_app(config)
 db = firebase.database()
 auth = firebase.auth()
-token = "asd"
+storage = firebase.storage()
+
+global activeClimate
 
 
-def init():
-    authApp()
-    getClimateSettings()
-
-
-def getClimateSettings():
+def saveClimateToMemory(json_payload,):
+    if len(json_payload) == 0:
+        return
     global token
-    json_payload = db.child("activeClimate").get(token=token).val()
-    json_data = json.dumps(json_payload, indent=4, default=str)
-    climate = Climate(json_data)
-    print(climate.GrowPhase.phase)
 
-    print("Successfully loaded Climate Settings")
+    json_data = json.dumps(json_payload, indent=4,
+                           default=str)
+    climate = Climate(json_data)
+
+    global buffer
+    size = len(climate.get_buffer())
+    # buffer[:] = b'0xff'
+    buffer[:size] = climate.get_buffer()
+
+    return climate
 
 
 def authApp():
@@ -38,32 +55,84 @@ def authApp():
         email="suf.raspberry.python@gmail.com", password="sufpython")
     token = user["idToken"]
     print("Successfully authenticated App")
+    return token
 
 
-class Climate(Structure):
-    _fields_ = [('x', c_double), ('y', c_double)]
+def climateListener(response):
+    global activeClimate
+    data = response["data"]
+    path = response["path"]
 
-    def __init__(self, data):
-        self.__dict__ = json.loads(data)
-        self.automaticWatering = self.__dict__["automaticWatering"]
-        self.id = self.__dict__["id"]
-        self.name = self.__dict__["name"]
-        self.soilMoisture = self.__dict__["soilMoisture"]
-        self.waterConsumption = self.__dict__["waterConsumption"]
-        self.GrowPhase = GrowPhase(self.__dict__["growPhase"])
+    if(path == "/growPhase/phase"):
+        activeClimate.growPhase.phase = data
+        print(
+            f"Grow Phase has changed to {data}. Climate:{activeClimate.name} Id:{activeClimate.id} @{12}")
+    else:
+        activeClimate = saveClimateToMemory(data)
+        print(
+            f"Active Climate has been loaded. Name:{activeClimate.name} Id:{activeClimate.id} @{12}")
 
 
-class GrowPhase(object):
+# post to storage
+def uploadImage(path, name):
+    storage.child('/images/'+name).put(path+name, token=token)
+    print("uploaded")
 
-    def __init__(self, data):
 
-        self.phase = data["phase"]
-        self.flower_hum = data["flower_hum"]
-        self.flower_suntime = data["flower_suntime"]
-        self.flower_temp = data["flower_temp"]
-        self.lateflower_hum = data["lateflower_hum"]
-        self.lateflower_suntime = data["lateflower_suntime"]
-        self.lateflower_temp = data["lateflower_temp"]
-        self.vegetation_hum = data["vegation_hum"]
-        self.vegetation_suntime = data["vegation_suntime"]
-        self.vegetation_temp = data["vegation_temp"]
+# write to database
+def referenceImage(fileName, date):
+    db.child("images").child(date).set(fileName, token=token)
+    print("referenced")
+
+
+def photoListener(response):
+    data = response["data"]
+    if(data == True):
+
+        path, name, date = takePhoto()
+        uploadImage(path, name)
+        referenceImage(name, date)
+        db.child("photo").set(data=False, token=token)
+        print(
+            f"{name} has been upladed and referenced")
+
+    else:
+        print("nothing")
+
+
+def firebaseMain():
+    # Start Eventlisteneers
+    clim_list = db.child("activeClimate").stream(
+        climateListener, token=token,)
+
+    photo_list = db.child("photo").stream(
+        photoListener, token=token,)
+
+
+def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankLevel, lock):
+    with lock:
+        liveData = LiveData(temperature.value,
+                            humidity.value, soilMoisture.value, growProgress.value, waterTankLevel.value)
+        json = liveData.getJson()
+        db.child("liveClimate").set(json, token=token)
+        print("Updated Live Data")
+
+
+if __name__ == "db" or "modules.database":
+    global token
+    global shm
+    global buffer
+
+    token = authApp()
+    try:
+        shm = shared_memory.SharedMemory(
+            create=True, name="activeClimate", size=1000)
+        buffer = shm.buf
+        print("Created SharedMemory")
+    except:
+        shm = shared_memory.SharedMemory(name="activeClimate")
+        buffer = shm.buf
+        print("Reloaded SharedMemory")
+
+    initialData = db.child("activeClimate").get(token=token).val()
+    saveClimateToMemory(initialData)
