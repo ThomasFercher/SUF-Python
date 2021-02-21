@@ -123,7 +123,8 @@ def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankL
     with lock:
         liveData = LiveData(temperature.value,
                             humidity.value, soilMoisture.value, growProgress.value, waterTankLevel.value)
-        json = liveData.getJson()
+        json = liveData.__dict__
+
         db.child("liveClimate").set(json, token=token)
         print("Updated Live Data")
 
