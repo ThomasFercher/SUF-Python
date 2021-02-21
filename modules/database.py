@@ -10,8 +10,6 @@ from os import name
 import json
 import ctypes
 from multiprocessing import shared_memory
-import asyncio
-import aioredis
 import pyrebase
 
 
