@@ -28,14 +28,12 @@ firebase = pyrebase.initialize_app(config)
 db = firebase.database()
 auth = firebase.auth()
 storage = firebase.storage()
-
 global activeClimate
 
 
-def saveClimateToMemory(json_payload,):
+def saveClimateToMemory(json_payload):
     if len(json_payload) == 0:
         return
-    global token
 
     json_data = json.dumps(json_payload, indent=4,
                            default=str)
@@ -50,10 +48,13 @@ def saveClimateToMemory(json_payload,):
 
 
 def authApp():
-    global token
+    # user = auth.sign_in_with_email_and_password(
+    #    email="suf.raspberry.python@gmail.com", password="sufpython")
+
     user = auth.sign_in_with_email_and_password(
         email="suf.raspberry.python@gmail.com", password="sufpython")
     token = user["idToken"]
+
     print("Successfully authenticated App")
     return token
 
@@ -86,6 +87,7 @@ def referenceImage(fileName, date):
 
 
 def photoListener(response):
+    global token
     data = response["data"]
     if(data == True):
 
@@ -100,7 +102,14 @@ def photoListener(response):
         print("nothing")
 
 
-def firebaseMain():
+def firebaseMain(t, args):
+
+    global token
+    token = t
+
+    initialData = db.child("activeClimate").get(token=token).val()
+    saveClimateToMemory(initialData)
+
     # Start Eventlisteneers
     clim_list = db.child("activeClimate").stream(
         climateListener, token=token,)
@@ -109,7 +118,8 @@ def firebaseMain():
         photoListener, token=token,)
 
 
-def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankLevel, lock):
+def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankLevel, lock, token):
+
     with lock:
         liveData = LiveData(temperature.value,
                             humidity.value, soilMoisture.value, growProgress.value, waterTankLevel.value)
@@ -119,20 +129,16 @@ def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankL
 
 
 if __name__ == "db" or "modules.database":
-    global token
     global shm
     global buffer
 
-    token = authApp()
     try:
         shm = shared_memory.SharedMemory(
             create=True, name="activeClimate", size=1000)
         buffer = shm.buf
+
         print("Created SharedMemory")
     except:
         shm = shared_memory.SharedMemory(name="activeClimate")
         buffer = shm.buf
         print("Reloaded SharedMemory")
-
-    initialData = db.child("activeClimate").get(token=token).val()
-    saveClimateToMemory(initialData)

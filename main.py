@@ -11,28 +11,21 @@ import modules.database as db
 import modules.sensors as sensors
 import modules.watering as ir
 import modules.lamp as light
+import modules.temperatureRegulation as tr
+import modules.humidityRegulation as hum
 from modules.loop import loop
 
 
-def getCurrentTimeString():
-    now = datetime.now()
-    return now.strftime("%d.%m.%Y %H:%M:%S")
-
-
-def readSensors(temperature, humidity, soilMoisture, lock):
-
-    sensors_process = Process(
-        target=sensors.readValues, args=(temperature, humidity, soilMoisture, lock))
-    sensors_process.start()
-    print(f"Sensors Process has started @{getCurrentTimeString()}")
-    sensors_process.join()
-    print(f"Sensors Process has finished @{getCurrentTimeString()}")
-    return temperature.value, humidity.value, soilMoisture.value,
-
-
 def main():
+    # Init Db
+    token = db.authApp()
+    firebase_process = Process(
+        target=db.firebaseMain, args=(token, ""))
+    firebase_process.start()
+    print(f"Firebase Process has started @{getCurrentTimeString()}")
+
     # Init Variables
-    samplingTime = 60
+    samplingTime = 20
     irrigated = False
     irrigationTime = datetime.today().replace(hour=12, minute=0)
     activeClimate = Climate('', empty=True)
@@ -46,46 +39,64 @@ def main():
 
     print(f"SUF-Box Script has started @{getCurrentTimeString()}")
 
-    # Firebase Stream Handler
-    firebase_process = Process(
-        target=db.firebaseMain, args=())
-    firebase_process.start()
-    print(f"Firebase Process has started @{getCurrentTimeString()}")
-
     # Main Loop which will control all regulations
     loopGen = loop(samplingTime)
     liveDataLock = Lock()
 
+    time.sleep(3)
+
+    processes_NTD = []
+
     while(True):
+        start = time.perf_counter()
         print(f"Loop has repeated @{getCurrentTimeString()}")
-        # Active Climate
+        # Active Climate: Loads Setpoints for Regulation
         activeClimate = loadClimate()
-        print(activeClimate.growPhase)
+        phase = activeClimate.growPhase.phase
 
-        # Irrigation
-        if(irrigationTime.day != datetime.now().day):
-            irrigationTime = irrigationTime.replace(day=datetime.now().day)
-            irrigated = False
-        if(irrigationTime.hour == datetime.now().hour and irrigated == False):
-            irrigation()
-            irrigated = True
-
-        # Lamp
-
-        lamp(activeClimate.getSuntime(activeClimate.growPhase.phase))
-
+        # Processes Needed For Regulations: Sensors
         # Sensors
         oldTemp = temperature.value
         oldHum = humidity.value
         oldSoil = soilMoisture.value
         readSensors(temperature, humidity, soilMoisture, liveDataLock)
 
-        # LiveData
-        updateLiveData(temperature, humidity, soilMoisture,
-                       growProgress, waterTankLevel, liveDataLock)
+        # Regulations
+        tempSetpoint = float(activeClimate.getTemperature(phase=phase))
+        humSetpoint = float(activeClimate.getHumidity(phase=phase))
 
-        loopGen.__next__()
+        processes_Regulations = [temperatureRegulation(
+            temperature, oldTemp, tempSetpoint), humidityRegulation(humidity, oldHum, humSetpoint)]
+
+        # Wait for all Processes to finish
+        for pr in processes_Regulations:
+            pr.join()
+
+        processes_Regulations = []
+
+        # Processes not Time Dependended: Lamp, LiveData Update in Firebase, Irrigation(once a day)
+        processes_NTD = [
+            lamp(activeClimate.getSuntime(phase)), updateLiveData(temperature, humidity, soilMoisture,
+                                                                  growProgress, waterTankLevel, liveDataLock, token)]
+
+        # Irrigation
+        if(irrigationTime.day != datetime.now().day):
+            irrigationTime = irrigationTime.replace(day=datetime.now().day)
+            irrigated = False
+        if(irrigationTime.hour == datetime.now().hour and irrigated == False):
+            processes_NTD.append(irrigation())
+            irrigated = True
+
+        # Wait for all Processes to finish
+        for pr in processes_NTD:
+            pr.join()
+
+        end = time.perf_counter()
+        print(f"Time:  {end-start} ")
+
+        processes_NTD = []
         print(getCurrentTimeString())
+        loopGen.__next__()
 
 
 def shutdown():
@@ -96,7 +107,21 @@ def lamp(suntime):
     lamp_Process = Process(
         target=light.sunTimeChanged, args=(suntime, suntime))
     lamp_Process.start()
-    lamp_Process.join()
+    return lamp_Process
+
+
+def temperatureRegulation(temperature, old_temperature, tempSetpoint):
+    temp_process = Process(
+        target=tr.temperatureRegulationCycle, args=(temperature.value, old_temperature, tempSetpoint))
+    temp_process.start()
+    return temp_process
+
+
+def humidityRegulation(humidity, old_humidity, humSetpoint):
+    hum_process = Process(
+        target=hum.humidityRegulationCycle, args=(humidity.value, old_humidity, humSetpoint))
+    hum_process.start()
+    return hum_process
 
 
 def irrigation(amount, percentage):
@@ -108,11 +133,11 @@ def irrigation(amount, percentage):
     print()
 
 
-def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankLevel, liveDataLock):
+def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankLevel, liveDataLock, token):
     liveDataProcess = Process(
-        target=db.updateLiveData, args=(temperature, humidity, soilMoisture, growProgress, waterTankLevel, liveDataLock))
+        target=db.updateLiveData, args=(temperature, humidity, soilMoisture, growProgress, waterTankLevel, liveDataLock, token))
     liveDataProcess.start()
-    liveDataProcess.join()
+    return liveDataProcess
 
 
 def loadClimate():
@@ -127,18 +152,20 @@ def loadClimate():
     return climate
 
 
-def firebase_main(main):
-    ''' This function sends the data for the child process '''
-    main.send(['Hello'])
-    main.close()
+def readSensors(temperature, humidity, soilMoisture, lock):
+
+    sensors_process = Process(
+        target=sensors.readValues, args=(temperature, humidity, soilMoisture, lock), daemon=True)
+    sensors_process.start()
+    print(f"Sensors Process has started @{getCurrentTimeString()}")
+    sensors_process.join()
+    print(f"Sensors Process has finished @{getCurrentTimeString()}")
+    return temperature.value, humidity.value, soilMoisture.value,
 
 
-def accurate_delay(delay):
-    ''' Function to provide accurate time delay in millisecond
-    '''
-    _ = time.perf_counter() + delay/1000
-    while time.perf_counter() < _:
-        pass
+def getCurrentTimeString():
+    now = datetime.now()
+    return now.strftime("%d.%m.%Y %H:%M:%S")
 
 
 if __name__ == "__main__":
