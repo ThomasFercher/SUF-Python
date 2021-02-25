@@ -1,8 +1,11 @@
 from datetime import date, datetime
-
+import gpiozero
+from gpiozero import OutputDevice
 
 global on
 on = False
+light =OutputDevice(pin=15,active_high=True, initial_value=False)
+
 
 # GPIO.Pin = 8
 
@@ -36,7 +39,9 @@ def sunTimeChanged(suntime, a):
 
 def turnOn():
     print("Turned on Lamp")
+    light.on()
 
 
 def turnOff():
     print("Turned off Lamp")
+    light.off()
