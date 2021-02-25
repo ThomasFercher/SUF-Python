@@ -12,7 +12,7 @@ pid = PID(kp, ki, kd, setpoint=30, sample_time=ta)
 pid.Kp = kp
 
 
-abluft =PWMOutputDevice(pin=18,active_high=True, initial_value=0,frequency=100)
+abluft =PWMOutputDevice(pin=18,active_high=True, initial_value=0,frequency=50)
 
 
 def humidityRegulationCycle(humidity, old_humidity, setpoint):
@@ -28,9 +28,6 @@ def changeAir():
 
 
     abluft.on()
-    #servo.openValve()
-    sleep(20)
+    abluft.pulse(fade_in_time=10, fade_out_time=10, n=None, background=True)
 
-    
-    #servo.closeValve()
-    abluft.off()
+   
