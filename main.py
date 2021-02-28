@@ -24,6 +24,11 @@ def main():
     firebase_process.start()
     print(f"Firebase Process has started @{getCurrentTimeString()}")
 
+    airtest = Process(
+        target=hum.changeAir, args=())
+    airtest.start()
+    
+
     # Init Variables
     samplingTime = 20
     irrigated = False
