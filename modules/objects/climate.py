@@ -88,11 +88,11 @@ class Climate(object):
             return 0.0
 
     def getSuntime(self, phase):
-        if phase == "vegetation":
+        if phase == "vegation":
             return self.growPhase.vegetation_suntime
         elif phase == "flower":
             return self.growPhase.flower_suntime
         elif phase == "lateflower":
             return self.growPhase.lateflower_suntime
         else:
-            return 0.0
+            return "06:00 - 18:00"
