@@ -18,7 +18,7 @@ import os
 
 
 def main():
-    os.system("flutter-pi /home/pi/Documents/suf-linux")
+    os.system("flutter-pi --release /home/pi/Documents/suf-linux")
 
     # Init Db
     token = db.authApp()
