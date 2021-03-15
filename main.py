@@ -14,9 +14,12 @@ import modules.lamp as light
 import modules.temperatureRegulation as tr
 import modules.humidityRegulation as hum
 from modules.loop import loop
+import os
 
 
 def main():
+    os.system("flutter-pi /home/pi/Documents/suf-linux")
+
     # Init Db
     token = db.authApp()
     firebase_process = Process(
@@ -27,7 +30,6 @@ def main():
     airtest = Process(
         target=hum.changeAir, args=())
     airtest.start()
-    
 
     # Init Variables
     samplingTime = 20

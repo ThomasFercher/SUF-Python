@@ -94,4 +94,5 @@ class Climate(object):
             return self.growPhase.flower_suntime
         elif phase == "lateflower":
             return self.growPhase.lateflower_suntime
-       
+        else:
+            return "06:00 - 18:00"
