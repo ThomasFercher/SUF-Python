@@ -12,7 +12,7 @@ pid = PID(kp, ki, kd, setpoint=30, sample_time=ta)
 pid.Kp = kp
 
 
-abluft =PWMOutputDevice(pin=18,active_high=True, initial_value=0,frequency=50)
+abluft =PWMOutputDevice(pin=20,active_high=True, initial_value=0,frequency=50)
 
 
 def humidityRegulationCycle(humidity, old_humidity, setpoint):
@@ -22,12 +22,13 @@ def humidityRegulationCycle(humidity, old_humidity, setpoint):
     control = pid(humidity)
 
     print(f"Control={control}")
-
+    changeAir()
 
 def changeAir():
 
 
-    abluft.on()
-    abluft.pulse(fade_in_time=10, fade_out_time=10, n=None, background=True)
+    abluft.toggle()
+    #abluft.pulse(fade_in_time=10, fade_out_time=10, n=None, background=True)
+    print(f"Fan Toggled")
 
    

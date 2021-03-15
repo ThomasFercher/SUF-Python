@@ -39,9 +39,9 @@ def sunTimeChanged(suntime, a):
 
 def turnOn():
     print("Turned on Lamp")
-    light.on()
+    #light.on()
 
 
 def turnOff():
     print("Turned off Lamp")
-    light.off()
+    #light.off()
