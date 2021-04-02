@@ -2,7 +2,7 @@
 # import adafruit_dht
 
 from multiprocessing import shared_memory
-
+import modules.adc as adc
 
 # DHT22
 # pin = board.D18
@@ -11,7 +11,7 @@ from multiprocessing import shared_memory
 
 def readValues(temperature, humidity, soilMoisture, lock):
     temp, hum = readDHT()
-    soil = 12.0
+    soil = readSoilMoisture()
     with lock:
         temperature.value = temp
         soilMoisture.value = hum
@@ -35,3 +35,9 @@ def readDHT():
     except Exception as error:
         # dhtDevice.exit()
         raise error
+
+
+def readSoilMoisture():
+    val = adc.readADC()
+    print(f"Soil Moisture: {val}%")
+    return val

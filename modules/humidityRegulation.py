@@ -27,7 +27,7 @@ def humidityRegulationCycle(humidity, old_humidity, setpoint):
 def changeAir():
 
 
-    abluft.toggle()
+    abluft.on()
     #abluft.pulse(fade_in_time=10, fade_out_time=10, n=None, background=True)
     print(f"Fan Toggled")
 
