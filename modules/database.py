@@ -3,12 +3,11 @@ from array import array
 from base64 import encode
 from modules.camera import takePhoto
 import time
-from modules.objects.climate import Climate, LiveData
+from modules.objects.climate import Climate, LiveClimate
 
 from os import name
 
 import json
-import ctypes
 from multiprocessing import shared_memory
 import pyrebase
 
@@ -18,14 +17,13 @@ config = {
     "authDomain": "smartgrowsystem-sgs.firebaseapp.com",
     "databaseURL": "https://smartgrowsystem-sgs.firebaseio.com/",
     "storageBucket": "smartgrowsystem-sgs.appspot.com"
-
 }
-
 
 firebase = pyrebase.initialize_app(config)
 db = firebase.database()
 auth = firebase.auth()
 storage = firebase.storage()
+
 global activeClimate
 
 
@@ -39,7 +37,6 @@ def saveClimateToMemory(json_payload):
 
     global buffer
     size = len(climate.get_buffer())
-    # buffer[:] = b'0xff'
     buffer[:size] = climate.get_buffer()
 
     return climate
@@ -64,6 +61,7 @@ def climateListener(response):
 
     if(path == "/growPhase/phase"):
         activeClimate.growPhase.phase = data
+        activeClimate = saveClimateToMemory(json.dumps(activeClimate.__dict__))
         print(
             f"Grow Phase has changed to {data}. Climate:{activeClimate.name} Id:{activeClimate.id} @{12}")
     else:
@@ -77,8 +75,9 @@ def uploadImage(path, name):
     storage.child('/images/'+name).put(path+name, token=token)
     print("uploaded")
 
-
 # write to database
+
+
 def referenceImage(fileName, date):
     db.child("images").child(date).set(fileName, token=token)
     print("referenced")
@@ -88,7 +87,6 @@ def photoListener(response):
     global token
     data = response["data"]
     if(data == True):
-
         path, name, date = takePhoto()
         uploadImage(path, name)
         referenceImage(name, date)
@@ -96,12 +94,8 @@ def photoListener(response):
         print(
             f"{name} has been upladed and referenced")
 
-    else:
-        print("nothing")
-
 
 def firebaseMain(t, args):
-
     global token
     token = t
 
@@ -119,9 +113,9 @@ def firebaseMain(t, args):
 def updateLiveData(temperature, humidity, soilMoisture, growProgress, waterTankLevel, lock, token):
 
     with lock:
-        liveData = LiveData(temperature.value,
-                            humidity.value, soilMoisture.value, growProgress.value, waterTankLevel.value)
-        json = liveData.__dict__
+        liveClimate = LiveClimate(temperature.value,
+                                  humidity.value, soilMoisture.value, growProgress.value, waterTankLevel.value)
+        json = liveClimate.__dict__
 
         db.child("liveClimate").set(json, token=token)
         print("Updated Live Data")

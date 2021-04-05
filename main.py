@@ -16,8 +16,13 @@ import modules.humidityRegulation as hum
 from modules.loop import loop
 import os
 
+# airtest = Process(
+#    target=hum.changeAir, args=())
+# airtest.start()
+
 
 def main():
+    # Start GUI
     os.system("flutter-pi --release /home/pi/Documents/suf-linux")
 
     # Init Db
@@ -27,15 +32,12 @@ def main():
     firebase_process.start()
     print(f"Firebase Process has started @{getCurrentTimeString()}")
 
-    airtest = Process(
-        target=hum.changeAir, args=())
-    airtest.start()
-
     # Init Variables
     samplingTime = 20
     irrigated = False
     irrigationTime = datetime.today().replace(hour=12, minute=0)
     activeClimate = Climate('', empty=True)
+
     temperature = Value('d', 0)
     humidity = Value('d', 0)
     soilMoisture = Value('d', 0)
@@ -49,14 +51,12 @@ def main():
     # Main Loop which will control all regulations
     loopGen = loop(samplingTime)
     liveDataLock = Lock()
-
-    time.sleep(3)
-
     processes_NTD = []
 
     while(True):
         start = time.perf_counter()
         print(f"Loop has repeated @{getCurrentTimeString()}")
+
         # Active Climate: Loads Setpoints for Regulation
         activeClimate = loadClimate()
         phase = activeClimate.growPhase.phase
@@ -72,8 +72,10 @@ def main():
         tempSetpoint = float(activeClimate.getTemperature(phase=phase))
         humSetpoint = float(activeClimate.getHumidity(phase=phase))
 
-        processes_Regulations = [temperatureRegulation(
-            temperature, oldTemp, tempSetpoint), humidityRegulation(humidity, oldHum, humSetpoint)]
+        processes_Regulations = [
+            temperatureRegulation(temperature, oldTemp, tempSetpoint),
+            humidityRegulation(humidity, oldHum, humSetpoint)
+        ]
 
         # Wait for all Processes to finish
         for pr in processes_Regulations:
@@ -83,8 +85,10 @@ def main():
 
         # Processes not Time Dependended: Lamp, LiveData Update in Firebase, Irrigation(once a day)
         processes_NTD = [
-            lamp(activeClimate.getSuntime(phase)), updateLiveData(temperature, humidity, soilMoisture,
-                                                                  growProgress, waterTankLevel, liveDataLock, token)]
+            lamp(activeClimate.getSuntime(phase)),
+            updateLiveData(temperature, humidity, soilMoisture,
+                           growProgress, waterTankLevel, liveDataLock, token)
+        ]
 
         # Irrigation
         if(irrigationTime.day != datetime.now().day):
@@ -98,12 +102,11 @@ def main():
         for pr in processes_NTD:
             pr.join()
 
+        processes_NTD = []
         end = time.perf_counter()
         print(f"Time:  {end-start} ")
-
-        processes_NTD = []
         print(getCurrentTimeString())
-        loopGen.__next__()
+        loopGen.__next__()  # wait till next period
 
 
 def shutdown():
