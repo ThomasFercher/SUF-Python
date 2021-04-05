@@ -1,6 +1,7 @@
 from simple_pid import PID
 import gpiozero
-from gpiozero import PWMOutputDevice
+from gpiozero import PWMOutputDevice,OutputDevice
+import modules.pump as pump
 from time import sleep
 
 ta = 10
@@ -11,8 +12,9 @@ global pid
 pid = PID(kp, ki, kd, setpoint=30, sample_time=ta)
 pid.Kp = kp
 
+valve =OutputDevice(pin=17,active_high=True, initial_value=False)
+abluft =OutputDevice(pin=20,active_high=True, initial_value=False)
 
-abluft =PWMOutputDevice(pin=20,active_high=True, initial_value=0,frequency=50)
 
 
 def humidityRegulationCycle(humidity, old_humidity, setpoint):
@@ -24,10 +26,19 @@ def humidityRegulationCycle(humidity, old_humidity, setpoint):
     print(f"Control={control}")
     changeAir()
 
+def squirt(duration,s):
+    pump.turnOn()
+    #valve.on()
+    sleep(5)
+    pump.turnOff()
+    #valve.off()
+
+
 def changeAir():
-
-
-    abluft.toggle()
+    abluft.on()
+   
+    
+     
     #abluft.pulse(fade_in_time=10, fade_out_time=10, n=None, background=True)
     print(f"Fan Toggled")
 
