@@ -4,7 +4,7 @@ from gpiozero import OutputDevice
 
 
 petier =OutputDevice(pin=26,active_high=True, initial_value=False)
-heating = OutputDevice(pin=21,active_high=True, initial_value=False)
+#heating = OutputDevice(pin=21,active_high=True, initial_value=False)
 
 
 
@@ -41,10 +41,10 @@ def temperatureRegulationCycle(temperature, old_temperature, setpoint):
 
     if(petier.is_active):
         if(control>0):
-            heating.on()
+            #heating.on()
             print(f"Petier is heating")
         elif(control<0):
-            heating.off()   
+            #heating.off()   
             print(f"Petier is cooling") 
 
     

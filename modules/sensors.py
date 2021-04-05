@@ -1,12 +1,12 @@
-# import board
-# import adafruit_dht
+import board
+import adafruit_dht
 
 from multiprocessing import shared_memory
 import modules.adc as adc
 
 # DHT22
-# pin = board.D18
-# dhtDevice = adafruit_dht.DHT22(pin)
+pin = board.D21
+dhtDevice = adafruit_dht.DHT22(pin)
 
 
 def readValues(temperature, humidity, soilMoisture, lock):
@@ -23,17 +23,17 @@ def readValues(temperature, humidity, soilMoisture, lock):
 def readDHT():
     try:
         # Print the values to the serial port
-        # temperature = dhtDevice.temperature
-        # humidity = dhtDevice.humidity
-        print()
-        return 12.0, 40.0
+        temperature = dhtDevice.temperature
+        humidity = dhtDevice.humidity
+       
+        return temperature, humidity
 
     except RuntimeError as error:
         # Errors happen fairly often, DHT's are hard to read, just keep going
         print(error.args[0])
 
     except Exception as error:
-        # dhtDevice.exit()
+        dhtDevice.exit()
         raise error
 
 

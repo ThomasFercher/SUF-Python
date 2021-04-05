@@ -1,10 +1,9 @@
 import time
 import gpiozero
 from gpiozero import OutputDevice
+import modules.pump as pump
 
-
-pump =OutputDevice(pin=17,active_high=True, initial_value=False)
-valve =OutputDevice(pin=27,active_high=True, initial_value=False)
+valve =OutputDevice(pin=22,active_high=True, initial_value=False)
 
 
 
@@ -19,11 +18,14 @@ def waterAmount(amount):
 
     litersPerSecond = 1
     duration = amount / litersPerSecond
-    # open Hose
-    pump.on()
+
+    valve.on()
+    pump.turnOn()
+
     time.sleep(duration)
-    pump.off()
-    # close Hose
+
+    pump.turnOff()
+    valve.off()
     print(f"Irrigation was on for {duration}seconds. @12:00")
 
 
